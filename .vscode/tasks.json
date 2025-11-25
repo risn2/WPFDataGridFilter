@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/WPFDataGridFilter/WPFDataGridFilter.csproj"
+      ],
+      "group": "build",
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "publish",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "${workspaceFolder}/WPFDataGridFilter/WPFDataGridFilter.csproj",
+        "-c",
+        "Debug",
+        "-o",
+        "${workspaceFolder}/WPFDataGridFilter/bin/Debug/net8.0-windows/publish"
+      ]
+    }
+  ]
+}

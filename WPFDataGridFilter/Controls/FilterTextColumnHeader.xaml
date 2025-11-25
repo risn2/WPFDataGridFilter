@@ -1,0 +1,49 @@
+<UserControl x:Class="WPFDataGridFilter.Controls.FilterTextColumnHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WPFDataGridFilter.Controls">
+    <DockPanel LastChildFill="False">
+        <local:HeaderFilterTextBox x:Name="PART_FilterBox"
+                                       DockPanel.Dock="{Binding FilterDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}"
+                                       FilterText="{Binding FilterText, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}, Mode=TwoWay}"
+                                       FilterKey="{Binding FilterKey, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}">
+            <local:HeaderFilterTextBox.Style>
+                <Style TargetType="{x:Type local:HeaderFilterTextBox}">
+                    <Setter Property="Margin" Value="0"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding FilterDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}" Value="Left">
+                            <Setter Property="Margin" Value="0,0,4,0"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding FilterDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}" Value="Right">
+                            <Setter Property="Margin" Value="4,0,0,0"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding FilterDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}" Value="Top">
+                            <Setter Property="Margin" Value="0,0,0,0"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding FilterDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}" Value="Bottom">
+                            <Setter Property="Margin" Value="0,0,0,0"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </local:HeaderFilterTextBox.Style>
+        </local:HeaderFilterTextBox>
+        <TextBlock FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       DockPanel.Dock="{Binding HeaderDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}"
+                       Text="{Binding HeaderText, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Margin" Value="0,0,4,0"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HeaderDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}" Value="Top">
+                            <Setter Property="Margin" Value="0,0,0,0"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding HeaderDock, RelativeSource={RelativeSource AncestorType=local:FilterTextColumnHeader}}" Value="Bottom">
+                            <Setter Property="Margin" Value="0,0,0,0"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+    </DockPanel>
+</UserControl>

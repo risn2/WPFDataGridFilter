@@ -1,0 +1,76 @@
+﻿<Window x:Class="WPFDataGridFilter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ctrls="clr-namespace:WPFDataGridFilter.Controls"
+        xmlns:behaviors="clr-namespace:WPFDataGridFilter.Behaviors"
+        mc:Ignorable="d"
+        Title="Log Viewer" Height="600" Width="1000">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+    <DockPanel Grid.Row="0" Margin="8">
+        <Button Content="全フィルター解除"
+            Command="{Binding ElementName=LogGrid, Path=ClearAllFiltersCommand}"
+            DockPanel.Dock="Right"
+            Padding="12,4"
+            Margin="8,0,0,0"/>
+        <TextBlock Text="DataGrid Header Filter (.NET 8 WPF)"
+               FontSize="16"
+               VerticalAlignment="Center"/>
+    </DockPanel>
+        <ctrls:FilterableDataGrid x:Name="LogGrid"
+                                   Grid.Row="1"
+                                   Margin="8"
+                                   ItemsSource="{Binding Items}"
+                                   MouseDoubleClick="LogGrid_MouseDoubleClick"
+                                   behaviors:ThreeStateSortBehavior.IsEnabled="True">
+            <ctrls:FilterableDataGrid.Columns>
+                <ctrls:FilterableTimeColumn Binding="{Binding Time}"
+                                            SortMemberPath="Time"
+                                            FilterKey="Time"
+                                            HeaderText="時刻" />
+
+                <ctrls:FilterableTextColumn Binding="{Binding IFNum}"
+                                            SortMemberPath="IFNum"
+                                            FilterKey="IFNum"
+                                            HeaderTextPath="IFNumHeaderText"
+                                            HeaderDock="Top"
+                                            FilterDock="Bottom" />
+
+                <ctrls:FilterableTextColumn Binding="{Binding Source}"
+                                            FilterKey="Source"
+                                            HeaderText="送信元" />
+
+                <ctrls:FilterableTextColumn Binding="{Binding Destination}"
+                                            FilterKey="Destination"
+                                            HeaderText="宛先" />
+
+                <ctrls:FilterableTextColumn Binding="{Binding Event}"
+                                            FilterKey="Event"
+                                            HeaderText="イベント" />
+
+                <ctrls:FilterableTextColumn Binding="{Binding Data}"
+                                            FilterKey="Data"
+                                            HeaderText="データ" />
+            </ctrls:FilterableDataGrid.Columns>
+        </ctrls:FilterableDataGrid>
+
+        <StatusBar Grid.Row="2" Margin="8,0,8,8">
+            <StatusBarItem>
+                <TextBlock Text="{Binding ElementName=LogGrid, Path=TotalCount, StringFormat=全件数: {0}}"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <TextBlock Text="{Binding ElementName=LogGrid, Path=FilteredCount, StringFormat=表示件数: {0}}"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <TextBlock Text="{Binding ElementName=LogGrid, Path=FilterElapsedMs, StringFormat=フィルター時間: {0:F1} ms}"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+    
+</Window>

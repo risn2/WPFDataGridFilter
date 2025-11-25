@@ -1,0 +1,120 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 既定のトグルボタン用ストローク ブラシ（コントロール側で上書き可能） -->
+    <SolidColorBrush x:Key="ToggleButtonNormalStrokeBrush" Color="Black" />
+    <!-- ボタンの四角部分のスタイル定義 -->
+    <!-- 基本 -->
+    <Style x:Key="NormalStyle" TargetType="Rectangle">
+        <Setter Property="Stroke" Value="Black" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="RadiusX" Value="4" />
+        <Setter Property="RadiusY" Value="4" />
+        <Setter Property="Margin" Value="2,2,2,2" />
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="Fill">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1" >
+                    <GradientStop Color="#A0A0A0" Offset="0" />
+                    <GradientStop Color="#808080" Offset="0.5" />
+                    <GradientStop Color="#404040" Offset="0.51" />
+                    <GradientStop Color="#505050" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 無効(Disable)時 -->
+    <Style x:Key="DisabledStyle" BasedOn="{StaticResource NormalStyle}" TargetType="Rectangle">
+        <Setter Property="Stroke" Value="Gray"/>
+        <Setter Property="Fill">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1" >
+                    <GradientStop Color="#F0F0F0" Offset="0" />
+                    <GradientStop Color="#E0E0E0" Offset="0.5" />
+                    <GradientStop Color="#C0C0C0" Offset="0.51" />
+                    <GradientStop Color="#D0D0D0" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- マウスオーバー -->
+    <Style x:Key="MouseOverStyle" BasedOn="{StaticResource NormalStyle}" TargetType="Rectangle">
+        <Setter Property="Stroke" Value="#00E0E0" />
+    </Style>
+
+    <!-- マウスダウン -->
+    <Style x:Key="MouseDownStyle" BasedOn="{StaticResource MouseOverStyle}" TargetType="Rectangle">
+        <Setter Property="Fill">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1" >
+                    <GradientStop Color="#D0E0F0" Offset="0" />
+                    <GradientStop Color="#A0B0F0" Offset="0.5" />
+                    <GradientStop Color="#8090F0" Offset="0.51" />
+                    <GradientStop Color="#90A0F0" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Button用テンプレート -->
+    <ControlTemplate x:Key="MyButtonTemplate" TargetType="Button">
+        <Grid>
+            <Rectangle x:Name="NormalState" Style="{StaticResource NormalStyle}" Opacity="1" />
+            <Rectangle x:Name="DisabledState" Style="{StaticResource DisabledStyle}" />
+            <Rectangle x:Name="MouseOverState" Style="{StaticResource MouseOverStyle}" />
+            <Rectangle x:Name="MouseDownState" Style="{StaticResource MouseDownStyle}" />
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Foreground" Value="#00E0E0"/>
+                <Setter Property="Opacity" TargetName="MouseDownState" Value="1" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="#00E0E0" />
+                <Setter Property="Opacity" TargetName="MouseOverState" Value="1" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="#808080" />
+                <Setter Property="Opacity" TargetName="DisabledState" Value="1" />
+            </Trigger>
+            <Trigger Property="IsFocused" Value="True">
+                <Setter Property="StrokeThickness" TargetName="NormalState" Value="2" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- ToggleButton用テンプレート（見た目はMyButtonTemplateと同等） -->
+    <ControlTemplate x:Key="MyToggleButtonTemplate" TargetType="ToggleButton">
+        <Grid>
+            <Rectangle x:Name="NormalState" Style="{StaticResource NormalStyle}" Opacity="1"
+                       Stroke="{DynamicResource ToggleButtonNormalStrokeBrush}" />
+            <Rectangle x:Name="DisabledState" Style="{StaticResource DisabledStyle}" />
+            <Rectangle x:Name="MouseOverState" Style="{StaticResource MouseOverStyle}" />
+            <Rectangle x:Name="MouseDownState" Style="{StaticResource MouseDownStyle}" />
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Foreground" Value="#00E0E0"/>
+                <Setter Property="Opacity" TargetName="MouseDownState" Value="1" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="#00E0E0" />
+                <Setter Property="Opacity" TargetName="MouseOverState" Value="1" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="#808080" />
+                <Setter Property="Opacity" TargetName="DisabledState" Value="1" />
+            </Trigger>
+            <Trigger Property="IsFocused" Value="True">
+                <Setter Property="StrokeThickness" TargetName="NormalState" Value="2" />
+            </Trigger>
+            <!-- Toggle 独自の状態（オン時の色）-->
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Opacity" TargetName="MouseOverState" Value="1" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+</ResourceDictionary>
