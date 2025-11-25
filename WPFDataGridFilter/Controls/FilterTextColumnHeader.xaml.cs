@@ -8,10 +8,12 @@ namespace WPFDataGridFilter.Controls
     /// </summary>
     public partial class FilterTextColumnHeader : UserControl
     {
+        #region コンストラクター
         public FilterTextColumnHeader()
         {
             InitializeComponent();
         }
+        #endregion // コンストラクター
 
         #region 依存関係プロパティ
         /// <summary>ヘッダーに表示する文字列</summary>
@@ -70,6 +72,7 @@ namespace WPFDataGridFilter.Controls
             nameof(FilterDock), typeof(Dock), typeof(FilterTextColumnHeader), new PropertyMetadata(Dock.Right));
         #endregion 依存関係プロパティ
 
+        /// <summary>テキストフィルター入力コントロール</summary>
         internal HeaderFilterTextBox FilterTextBox => PART_FilterBox;
     }
 }

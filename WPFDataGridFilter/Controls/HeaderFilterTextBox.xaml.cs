@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -71,12 +72,12 @@ namespace WPFDataGridFilter.Controls
         }
 
         /// <summary>
-        /// <see cref="FilterKey"/> の依存関係プロパティ定義。
+        /// <see cref="FilterKey"/> の依存関係プロパティ定義
         /// </summary>
         public static readonly DependencyProperty FilterKeyProperty =
             DependencyProperty.Register(nameof(FilterKey), typeof(string), typeof(HeaderFilterTextBox), new PropertyMetadata(null, OnFilterKeyChanged));
 
-        /// <summary>フィルター対象プロパティキー。</summary>
+        /// <summary>フィルター対象プロパティキー</summary>
         public string? FilterKey
         {
             get => (string?)GetValue(FilterKeyProperty);
@@ -84,12 +85,12 @@ namespace WPFDataGridFilter.Controls
         }
 
         /// <summary>
-        /// <see cref="IsFilterActive"/> の依存関係プロパティ定義。
+        /// <see cref="IsFilterActive"/> の依存関係プロパティ定義
         /// </summary>
         public static readonly DependencyProperty IsFilterActiveProperty =
             DependencyProperty.Register(nameof(IsFilterActive), typeof(bool), typeof(HeaderFilterTextBox), new PropertyMetadata(false));
 
-        /// <summary>フィルター有効状態。</summary>
+        /// <summary>フィルター有効状態</summary>
         public bool IsFilterActive
         {
             get => (bool)GetValue(IsFilterActiveProperty);
@@ -97,12 +98,12 @@ namespace WPFDataGridFilter.Controls
         }
 
         /// <summary>
-        /// <see cref="ExternalFilterActive"/> の依存関係プロパティ定義。
+        /// <see cref="ExternalFilterActive"/> の依存関係プロパティ定義
         /// </summary>
         public static readonly DependencyProperty ExternalFilterActiveProperty =
             DependencyProperty.Register(nameof(ExternalFilterActive), typeof(bool), typeof(HeaderFilterTextBox), new PropertyMetadata(false, OnExternalFilterActiveChanged));
 
-        /// <summary>外部コントロールによるフィルター状態。</summary>
+        /// <summary>外部コントロールによるフィルター状態</summary>
         public bool ExternalFilterActive
         {
             get => (bool)GetValue(ExternalFilterActiveProperty);
@@ -212,19 +213,19 @@ namespace WPFDataGridFilter.Controls
         #endregion // メソッド
 
         #region ヘルパー
-        /// <summary>メニューイベントを一度だけ接続するためのフラグ。</summary>
+        /// <summary>メニューイベントを一度だけ接続するためのフラグ</summary>
         private bool menuAttached;
 
-        /// <summary>コンテキストメニュー用の現在候補。</summary>
+        /// <summary>コンテキストメニュー用の現在候補</summary>
         private readonly List<string> currentChoices = new();
 
-        /// <summary>現在選択されている値集合。</summary>
+        /// <summary>現在選択されている値集合</summary>
         private readonly HashSet<string> currentSelection = new(StringComparer.Ordinal);
 
-        /// <summary>全件選択状態を示すフラグ。</summary>
+        /// <summary>全件選択状態を示すフラグ</summary>
         private bool selectionIsAll = true;
 
-        /// <summary>チェック状態更新時にイベントを抑制するフラグ。</summary>
+        /// <summary>チェック状態更新時にイベントを抑制するフラグ</summary>
         private bool suppressSelectionHandlers;
 
         /// <summary>
@@ -250,10 +251,9 @@ namespace WPFDataGridFilter.Controls
                 menu.Placement = PlacementMode.Bottom;
                 menu.Opened += FilterMenu_Opened;
                 menu.MaxHeight = 280; // 約10項目分の表示領域
-                menu.MaxWidth = 220;
+                menu.MaxWidth = 300;
                 ScrollViewer.SetCanContentScroll(menu, true);
                 ScrollViewer.SetVerticalScrollBarVisibility(menu, ScrollBarVisibility.Auto);
-                ScrollViewer.SetHorizontalScrollBarVisibility(menu, ScrollBarVisibility.Auto);
                 menuAttached = true;
             }
         }
@@ -263,9 +263,16 @@ namespace WPFDataGridFilter.Controls
         /// </summary>
         private void FilterButton_Click(object? sender, RoutedEventArgs e)
         {
-            if (ContextMenu is ContextMenu menu)
+            if (ContextMenu is not ContextMenu menu) return;
+
+            try
             {
                 menu.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                menu.IsOpen = false;
+                HandleMenuException("フィルターメニューの表示に失敗しました。", ex);
             }
         }
 
@@ -276,7 +283,15 @@ namespace WPFDataGridFilter.Controls
         {
             if (sender is ContextMenu menu)
             {
-                PopulateFilterMenu(menu);
+                try
+                {
+                    PopulateFilterMenu(menu);
+                }
+                catch (Exception ex)
+                {
+                    menu.IsOpen = false;
+                    HandleMenuException("フィルターメニューの作成に失敗しました。", ex);
+                }
             }
         }
 
@@ -580,7 +595,20 @@ namespace WPFDataGridFilter.Controls
         /// </summary>
         private static string NormalizeValue(string? value) => value ?? string.Empty;
 
-        /// <summary>ホスト DataGrid 参照。</summary>
+        /// <summary>
+        /// メニュー操作で発生した例外をユーザーへ通知
+        /// </summary>
+        private static void HandleMenuException(string message, Exception exception)
+        {
+            Debug.WriteLine($"[HeaderFilterTextBox] {message} {exception}");
+            MessageBox.Show(
+                $"{message}\n{exception.Message}",
+                "フィルターメニュー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        /// <summary>ホスト DataGrid 参照</summary>
         private FilterableDataGrid? hostGrid;
 
         /// <summary>
@@ -670,6 +698,9 @@ namespace WPFDataGridFilter.Controls
             return hostGrid.FilterSelections.ContainsKey(FilterKey);
         }
 
+        /// <summary>
+        /// フィルター文字列変更時処理
+        /// </summary>
         private static void OnFilterTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is HeaderFilterTextBox control)
@@ -678,6 +709,9 @@ namespace WPFDataGridFilter.Controls
             }
         }
 
+        /// <summary>
+        /// フィルターキー変更時処理
+        /// </summary>
         private static void OnFilterKeyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is HeaderFilterTextBox control)
@@ -687,6 +721,9 @@ namespace WPFDataGridFilter.Controls
             }
         }
 
+        /// <summary>
+        /// 外部フィルター状態変更時処理
+        /// </summary>
         private static void OnExternalFilterActiveChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is HeaderFilterTextBox control)

@@ -33,16 +33,29 @@ namespace WPFDataGridFilter.ViewModels
         {
             for (int i = 0; i < 200; i++)
             {
-                Items.Add(new LogEntry
+                var entry = new LogEntry
                 {
                     Time = DateTime.Now.AddMinutes(-i).ToString("yyyy/MM/dd HH:mm:ss.fff"),
                     IFNum = ((i % 3) + 1).ToString(),
                     Source = "SRC" + (i % 5),
                     Destination = "DST" + (i % 7),
-                    Event = i % 2 == 0 ? "SEND" : "RECV",
-                    Data = $"Payload {i}"
-                });
+                    Event = i % 2 == 0 ? "SEND" : "RECV"
+                };
+
+                entry.Data = i % 4 == 0
+                    ? BuildPacket(i)
+                    : $"Payload {i}";
+
+                Items.Add(entry);
             }
+        }
+
+        private static byte[] BuildPacket(int seed)
+        {
+            var random = new Random(seed);
+            var buffer = new byte[16];
+            random.NextBytes(buffer);
+            return buffer;
         }
 
         #region INotifyPropertyChanged

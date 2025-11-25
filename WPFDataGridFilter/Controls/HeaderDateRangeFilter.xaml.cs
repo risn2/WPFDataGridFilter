@@ -194,7 +194,6 @@ namespace WPFDataGridFilter.Controls
                 UpdateComposed();
             }
         }
-        #endregion // イベントハンドラー
 
         /// <summary>
         /// From/To の日付変更を反映
@@ -217,6 +216,7 @@ namespace WPFDataGridFilter.Controls
                 c.UpdateComposed();
             }
         }
+        #endregion // イベントハンドラー
 
         /// <summary>
         /// DatePickerで選択された日付に、時刻文字列（HH:mm:ss）を合成して From/To を更新

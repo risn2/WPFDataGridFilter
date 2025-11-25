@@ -10,10 +10,12 @@ namespace WPFDataGridFilter.Controls
     /// </summary>
     public partial class FilterTimeColumnHeader : UserControl
     {
+        #region コンストラクター
         public FilterTimeColumnHeader()
         {
             InitializeComponent();
         }
+        #endregion // コンストラクター
 
         #region 依存関係プロパティ
         /// <summary>ヘッダー表示文字列</summary>
@@ -83,8 +85,10 @@ namespace WPFDataGridFilter.Controls
             nameof(RangeClearCommand), typeof(ICommand), typeof(FilterTimeColumnHeader), new PropertyMetadata(null));
         #endregion 依存関係プロパティ
 
+        /// <summary>テキストフィルター入力コントロール</summary>
         internal HeaderFilterTextBox FilterTextBox => PART_FilterBox;
 
+        /// <summary>日時範囲フィルターコントロール</summary>
         internal HeaderDateRangeFilter DateRangeFilter => PART_DateRangeFilter;
     }
 }

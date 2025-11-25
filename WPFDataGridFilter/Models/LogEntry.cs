@@ -14,7 +14,24 @@ namespace WPFDataGridFilter.Models
         public string? Source { get; set; }
         public string? Destination { get; set; }
         public string? Event { get; set; }
-        public string? Data { get; set; }
+        public object? Data { get; set; }
+
+        /// <summary>
+        /// 画面表示およびテキストフィルターで使用する文字列表現。
+        /// </summary>
+        public string DataText
+        {
+            get
+            {
+                return Data switch
+                {
+                    null => string.Empty,
+                    string text => text,
+                    byte[] bytes => BitConverter.ToString(bytes).Replace("-", " "),
+                    _ => Data?.ToString() ?? string.Empty
+                };
+            }
+        }
         #endregion プロパティ（表示用）
 
         #region プロパティ（内部用）

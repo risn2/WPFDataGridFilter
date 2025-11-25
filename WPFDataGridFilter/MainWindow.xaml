@@ -54,8 +54,8 @@
                                             FilterKey="Event"
                                             HeaderText="イベント" />
 
-                <ctrls:FilterableTextColumn Binding="{Binding Data}"
-                                            FilterKey="Data"
+                <ctrls:FilterableTextColumn Binding="{Binding DataText}"
+                                            FilterKey="DataText"
                                             HeaderText="データ" />
             </ctrls:FilterableDataGrid.Columns>
         </ctrls:FilterableDataGrid>

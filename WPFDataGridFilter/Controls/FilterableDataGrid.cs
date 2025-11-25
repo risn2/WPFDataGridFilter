@@ -35,6 +35,17 @@ namespace WPFDataGridFilter.Controls
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         #endregion // INotifyPropertyChanged実装
 
+        #region 定数
+        //---------------------------------------------------------
+        // 定数
+        //---------------------------------------------------------
+        /// <summary>日時フィルター用キー</summary>
+        private const string TimeFilterKey = "Time";
+
+        /// <summary>タイムスタンプフィルター用キー</summary>
+        private const string TimeStampFilterKey = "Timestamp";
+        #endregion // 定数
+
         #region フィールド
         /// <summary>一覧表示用コレクションビュー保持</summary>
         private ICollectionView? itemsView;
@@ -312,7 +323,7 @@ namespace WPFDataGridFilter.Controls
                 if (string.IsNullOrWhiteSpace(filter.Key)) continue;
 
                 // Time キーは日時フィルターで処理済み
-                if (string.Equals(filter.Key, "Time", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(filter.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)) continue;
 
                 // キーに対応するプロパティ値がフィルターにマッチするか判定
                 if (!Match(ResolveMemberAsString(item, filter.Key), filter.Value)) return false;
@@ -322,7 +333,7 @@ namespace WPFDataGridFilter.Controls
             {
                 if (string.IsNullOrWhiteSpace(selection.Key)) continue;
 
-                if (string.Equals(selection.Key, "Time", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(selection.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)) continue;
 
                 var allowed = selection.Value;
 
@@ -455,7 +466,7 @@ namespace WPFDataGridFilter.Controls
         /// <returns>条件を満たす場合は true</returns>
         private bool ApplyTimeFilter(object item)
         {
-            var hasTimeKey = FilterTexts.ContainsKey("Time");
+            var hasTimeKey = FilterTexts.ContainsKey(TimeFilterKey);
             var hasRange = TimeFrom.HasValue || TimeTo.HasValue;
 
             if (!hasTimeKey && !hasRange)
@@ -463,15 +474,15 @@ namespace WPFDataGridFilter.Controls
                 return true;
             }
 
-            var timeText = ResolveMemberAsString(item, "Time");
+            var timeText = ResolveMemberAsString(item, TimeFilterKey);
             var normalizedTime = NormalizeValue(timeText);
 
-            if (!Match(timeText, FilterTexts["Time"]))
+            if (!Match(timeText, FilterTexts[TimeFilterKey]))
             {
                 return false;
             }
 
-            if (FilterSelections.TryGetValue("Time", out var timeSelection))
+            if (FilterSelections.TryGetValue(TimeFilterKey, out var timeSelection))
             {
                 if (timeSelection.Count == 0 || !timeSelection.Contains(normalizedTime))
                 {
@@ -554,7 +565,7 @@ namespace WPFDataGridFilter.Controls
         /// <returns>日時候補</returns>
         private static DateTime? ResolveDateTimeCandidate(object item, string? timeText)
         {
-            var timeStamp = ConvertToDateTime(ResolveMember(item, "TimeStamp"));
+            var timeStamp = ConvertToDateTime(ResolveMember(item, TimeStampFilterKey));
             if (timeStamp.HasValue)
             {
                 return timeStamp;
@@ -565,7 +576,7 @@ namespace WPFDataGridFilter.Controls
                 return parsed;
             }
 
-            return ConvertToDateTime(ResolveMember(item, "Time"));
+            return ConvertToDateTime(ResolveMember(item, TimeFilterKey));
         }
 
         /// <summary>
@@ -629,7 +640,7 @@ namespace WPFDataGridFilter.Controls
                 RefreshFilter();
             }
         }
-        
+
         /// <summary>
         /// フィルター状態変更通知
         /// </summary>
@@ -657,7 +668,7 @@ namespace WPFDataGridFilter.Controls
         /// プロパティ値に変化があった場合にPropertyChangedイベントを発生させる
         /// </summary>
         /// <param name="propertyName">変更プロパティ名</param>
-        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        private void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         #endregion // INotifyPropertyChanged実装
 

@@ -11,7 +11,7 @@ namespace WPFDataGridFilter.ViewModels
         #region フィールド
         private readonly Action<object?> _execute;
         private readonly Func<object?, bool>? _canExecute;
-    #endregion フィールド
+        #endregion // フィールド
 
         #region コンストラクタ
         /// <summary>
@@ -24,7 +24,7 @@ namespace WPFDataGridFilter.ViewModels
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
         }
-    #endregion コンストラクタ
+        #endregion コンストラクタ
 
         #region メソッド
         /// <summary>
@@ -36,7 +36,7 @@ namespace WPFDataGridFilter.ViewModels
         /// コマンドの実行を行います。
         /// </summary>
         public void Execute(object? parameter) => _execute(parameter);
-    #endregion メソッド
+        #endregion メソッド
 
         #region イベント
         /// <summary>
@@ -47,6 +47,6 @@ namespace WPFDataGridFilter.ViewModels
             add { CommandManager.RequerySuggested += value; }
             remove { CommandManager.RequerySuggested -= value; }
         }
-    #endregion イベント
+        #endregion イベント
     }
 }
