@@ -111,6 +111,12 @@ namespace WPFDataGridFilter.Controls
 
         /// <summary>並列処理用にキャプチャした FilterSelections</summary>
         private List<KeyValuePair<string, HashSet<string>>>? _capturedFilterSelections;
+
+        /// <summary>プロパティ値インデックス（選択フィルター高速化用）</summary>
+        private readonly PropertyIndex _propertyIndex = new();
+
+        /// <summary>インデックス構築対象のプロパティ名リスト</summary>
+        private static readonly string[] IndexableProperties = { "IFNum", "Source", "Destination", "Event" };
         #endregion // フィールド
 
         #region プロパティ
@@ -257,7 +263,27 @@ namespace WPFDataGridFilter.Controls
             DetachCollectionEvents();
             base.OnItemsSourceChanged(oldValue, newValue);
             AttachToItemsSource(newValue);
+            BuildPropertyIndices();
             RefreshFilter();
+        }
+
+        /// <summary>
+        /// プロパティインデックスを構築
+        /// </summary>
+        private void BuildPropertyIndices()
+        {
+            if (ItemsSource is IList source)
+            {
+                _propertyIndex.SetSource(source);
+                foreach (var prop in IndexableProperties)
+                {
+                    _propertyIndex.BuildIndex(prop);
+                }
+            }
+            else
+            {
+                _propertyIndex.SetSource(null);
+            }
         }
 
         /// <summary>
@@ -635,6 +661,21 @@ namespace WPFDataGridFilter.Controls
                 return Array.Empty<string>();
             }
 
+            // インデックスが存在すれば高速パスを使用
+            var indexed = _propertyIndex.GetDistinctValuesFromIndex(propertyName);
+            if (indexed != null)
+            {
+                if (indexed.Count > MaxDistinctValuesForSelection)
+                {
+                    return null;
+                }
+                Metrics.RecordCacheHit();
+                return indexed;
+            }
+
+            Metrics.RecordCacheMiss();
+
+            // フォールバック: 全件走査
             var values = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var item in ItemsSource.Cast<object>())

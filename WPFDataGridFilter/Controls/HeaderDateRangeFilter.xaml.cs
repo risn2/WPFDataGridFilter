@@ -16,6 +16,11 @@ namespace WPFDataGridFilter.Controls
         // 画面（Window/Page）側のViewModelが状態（例: FilterText, From/To）を持ち、UserControlはDP経由でBindingする。
         // 見た目やフォーカス制御など純Viewの都合はコードビハインドで最小限に扱う。
 
+        #region フィールド
+        /// <summary>再入防止フラグ</summary>
+        private bool _isUpdating;
+        #endregion // フィールド
+
         #region 依存関係プロパティ フィールド
         /// <summary>IsFilterd プロパティ（読み取り専用）の DependencyPropertyKey</summary>
         private static readonly DependencyPropertyKey IsFilterdPropertyKey =
@@ -90,7 +95,7 @@ namespace WPFDataGridFilter.Controls
         public DateTime? From
         {
             get => (DateTime?)GetValue(FromProperty);
-            set { SetValue(FromProperty, value); UpdateComposed(); }
+            set => SetValue(FromProperty, value);
         }
 
         /// <summary>
@@ -99,7 +104,7 @@ namespace WPFDataGridFilter.Controls
         public DateTime? To
         {
             get => (DateTime?)GetValue(ToProperty);
-            set { SetValue(ToProperty, value); UpdateComposed(); }
+            set => SetValue(ToProperty, value);
         }
 
         /// <summary>フィルターのクリアコマンド</summary>
@@ -223,19 +228,30 @@ namespace WPFDataGridFilter.Controls
         /// </summary>
         private void UpdateComposed()
         {
-            if (From.HasValue && TimeSpan.TryParse(FromTimeText, out var t1))
+            // 再入防止
+            if (_isUpdating) return;
+            _isUpdating = true;
+
+            try
             {
-                var d1 = From.Value.Date + t1;
-                if (!Equals(From, d1))
-                    SetValue(FromProperty, d1);
+                if (From.HasValue && TimeSpan.TryParse(FromTimeText, out var t1))
+                {
+                    var d1 = From.Value.Date + t1;
+                    if (From.Value != d1)
+                        SetValue(FromProperty, d1);
+                }
+                if (To.HasValue && TimeSpan.TryParse(ToTimeText, out var t2))
+                {
+                    var d2 = To.Value.Date + t2;
+                    if (To.Value != d2)
+                        SetValue(ToProperty, d2);
+                }
+                UpdateIsFilterd();
             }
-            if (To.HasValue && TimeSpan.TryParse(ToTimeText, out var t2))
+            finally
             {
-                var d2 = To.Value.Date + t2;
-                if (!Equals(To, d2))
-                    SetValue(ToProperty, d2);
+                _isUpdating = false;
             }
-            UpdateIsFilterd();
         }
 
         /// <summary>

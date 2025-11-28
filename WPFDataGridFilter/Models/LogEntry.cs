@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace WPFDataGridFilter.Models
 {
@@ -8,6 +9,27 @@ namespace WPFDataGridFilter.Models
     /// </summary>
     public class LogEntry
     {
+        #region 定数
+        /// <summary>日時解析で利用するフォーマット候補</summary>
+        private static readonly string[] SupportedTimeFormats =
+        {
+            "yyyy/MM/dd HH:mm:ss.fff",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss.fff",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-ddTHH:mm:ss.fff",
+            "yyyy-MM-ddTHH:mm:ss",
+        };
+        #endregion
+
+        #region フィールド
+        /// <summary>TimeStamp のキャッシュ済みフラグ</summary>
+        private bool _timeStampCached;
+
+        /// <summary>TimeStamp のキャッシュ値</summary>
+        private DateTime? _timeStampValue;
+        #endregion
+
         #region プロパティ（表示用）
         public string? Time { get; set; }
         public string? IFNum { get; set; }
@@ -36,29 +58,39 @@ namespace WPFDataGridFilter.Models
 
         #region プロパティ（内部用）
         /// <summary>
-        /// フィルタ向けにパース済みの日時。
+        /// フィルタ向けにパース済みの日時（キャッシュ付き遅延評価）。
         /// </summary>
         public DateTime? TimeStamp
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(Time)) return null;
-                // 代表的なフォーマットを複数試す（必要に応じて拡張可）
-                string[] fmts = new[]
+                if (_timeStampCached)
                 {
-                    "yyyy/MM/dd HH:mm:ss.fff",
-                    "yyyy/MM/dd HH:mm:ss",
-                    "yyyy-MM-dd HH:mm:ss.fff",
-                    "yyyy-MM-dd HH:mm:ss",
-                    "yyyy-MM-ddTHH:mm:ss.fff",
-                    "yyyy-MM-ddTHH:mm:ss",
-                };
-                if (DateTime.TryParseExact(Time, fmts, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.AssumeLocal, out var dt))
+                    return _timeStampValue;
+                }
+
+                _timeStampCached = true;
+
+                if (string.IsNullOrWhiteSpace(Time))
                 {
+                    _timeStampValue = null;
+                    return null;
+                }
+
+                if (DateTime.TryParseExact(Time, SupportedTimeFormats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeLocal, out var dt))
+                {
+                    _timeStampValue = dt;
                     return dt;
                 }
-                if (DateTime.TryParse(Time, out var any)) return any;
+
+                if (DateTime.TryParse(Time, out var any))
+                {
+                    _timeStampValue = any;
+                    return any;
+                }
+
+                _timeStampValue = null;
                 return null;
             }
         }

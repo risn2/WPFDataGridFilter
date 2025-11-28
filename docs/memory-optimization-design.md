@@ -431,15 +431,69 @@ if (distinctValues is null)
 
 ### フェーズ2: 構造改善（中期）
 
-1. **インデックス構築**
+1. **インデックス構築** ✅ 実装済み
    - 実装コスト: 中〜高
    - 効果: 高（選択フィルター）
    - 既存コードへの影響: 中
+   - 詳細: PropertyIndex クラスを作成し、IFNum, Source, Destination, Event 列でインデックスを構築
 
-2. **LogEntry の軽量化**
+```csharp
+// PropertyIndex.cs - プロパティ値からアイテムインデックスへのマッピング
+public class PropertyIndex
+{
+    private Dictionary<string, Dictionary<string, List<int>>> _indices = new();
+    
+    // インデックス構築（ItemsSource 変更時に呼び出し）
+    public void BuildIndex(IList source, string propertyName) { ... }
+    
+    // インデックスから重複なし値を取得（O(1)）
+    public IEnumerable<string>? GetDistinctValuesFromIndex(string propertyName) { ... }
+}
+
+// FilterableDataGrid での使用
+private static readonly HashSet<string> IndexableProperties = 
+    new() { "IFNum", "Source", "Destination", "Event" };
+
+private void BuildPropertyIndices()
+{
+    foreach (var prop in IndexableProperties)
+        _propertyIndex.BuildIndex(ItemsSource as IList, prop);
+}
+```
+
+**メリット:**
+- GetDistinctValues が O(n) → O(1) に高速化
+- FilterMetrics でキャッシュヒット/ミスを追跡可能
+- 選択フィルターメニュー生成が即座に完了
+
+2. **LogEntry の軽量化（TimeStamp キャッシュ）** ✅ 実装済み
    - 実装コスト: 中
    - 効果: 中
-   - 既存コードへの影響: 大（バインディング変更）
+   - 既存コードへの影響: 小（バインディング変更不要）
+   - 詳細: TimeStamp プロパティを遅延評価+キャッシュ化
+
+```csharp
+// LogEntry.cs - TimeStamp の遅延評価とキャッシュ
+private bool _timeStampCached;
+private DateTime _timeStampValue;
+
+public DateTime TimeStamp
+{
+    get
+    {
+        if (!_timeStampCached)
+        {
+            _timeStampValue = ParseTimeStamp(Time);
+            _timeStampCached = true;
+        }
+        return _timeStampValue;
+    }
+}
+```
+
+**メリット:**
+- 繰り返しフィルター時のパース処理を回避
+- DateTime.TryParseExact の呼び出し回数を大幅削減
 
 ### フェーズ3: アーキテクチャ変更（長期）
 
@@ -544,5 +598,6 @@ public class FilterMetrics
 
 ## 変更履歴
 
+- 2025-11-28: フェーズ2（インデックス構築・LogEntry軽量化）を実装
 - 2025-11-28: フェーズ1.5（DistinctValues上限制限）を追加・実装
 - 2025-11-28: 初版作成（メモリ最適化の設計検討）
