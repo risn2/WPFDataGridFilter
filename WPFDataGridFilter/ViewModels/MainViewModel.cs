@@ -18,17 +18,17 @@ namespace WPFDataGridFilter.ViewModels
         /// <summary>IFNum 列のヘッダー表示文字列。</summary>
         public string IFNumHeaderText
         {
-            get => _ifNumHeaderText;
+            get => ifNumHeaderText;
             set
             {
-                if (_ifNumHeaderText != value)
+                if (ifNumHeaderText != value)
                 {
-                    _ifNumHeaderText = value;
+                    ifNumHeaderText = value;
                     OnPropertyChanged(nameof(IFNumHeaderText));
                 }
             }
         }
-        private string _ifNumHeaderText = "IFNum";
+        private string ifNumHeaderText = "IFNum";
 
         public MainViewModel()
         {

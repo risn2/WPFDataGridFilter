@@ -24,10 +24,10 @@ namespace WPFDataGridFilter.Models
 
         #region フィールド
         /// <summary>TimeStamp のキャッシュ済みフラグ</summary>
-        private bool _timeStampCached;
+        private bool timeStampCached;
 
         /// <summary>TimeStamp のキャッシュ値</summary>
-        private DateTime? _timeStampValue;
+        private DateTime? timeStampValue;
         #endregion
 
         #region プロパティ（表示用）
@@ -64,33 +64,33 @@ namespace WPFDataGridFilter.Models
         {
             get
             {
-                if (_timeStampCached)
+                if (timeStampCached)
                 {
-                    return _timeStampValue;
+                    return timeStampValue;
                 }
 
-                _timeStampCached = true;
+                timeStampCached = true;
 
                 if (string.IsNullOrWhiteSpace(Time))
                 {
-                    _timeStampValue = null;
+                    timeStampValue = null;
                     return null;
                 }
 
                 if (DateTime.TryParseExact(Time, SupportedTimeFormats, CultureInfo.InvariantCulture,
                     DateTimeStyles.AssumeLocal, out var dt))
                 {
-                    _timeStampValue = dt;
+                    timeStampValue = dt;
                     return dt;
                 }
 
                 if (DateTime.TryParse(Time, out var any))
                 {
-                    _timeStampValue = any;
+                    timeStampValue = any;
                     return any;
                 }
 
-                _timeStampValue = null;
+                timeStampValue = null;
                 return null;
             }
         }

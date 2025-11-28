@@ -10,12 +10,12 @@ namespace WPFDataGridFilter.Helpers
     {
         #region フィールド
         /// <summary>インターン済み文字列の保持辞書</summary>
-        private readonly ConcurrentDictionary<string, string> _pool = new();
+        private readonly ConcurrentDictionary<string, string> pool = new();
         #endregion
 
         #region プロパティ
         /// <summary>プール内のエントリ数</summary>
-        public int Count => _pool.Count;
+        public int Count => pool.Count;
 
         /// <summary>グローバル共有インスタンス</summary>
         public static StringPool Shared { get; } = new();
@@ -35,7 +35,7 @@ namespace WPFDataGridFilter.Helpers
                 return value;
             }
 
-            return _pool.GetOrAdd(value, static v => v);
+            return pool.GetOrAdd(value, static v => v);
         }
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace WPFDataGridFilter.Helpers
         /// </summary>
         public void Clear()
         {
-            _pool.Clear();
+            pool.Clear();
         }
         #endregion
     }

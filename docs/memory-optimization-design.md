@@ -39,63 +39,66 @@
 ### 2.1 仮想化データソース（Virtualization）
 
 #### 概要
+
 全データをメモリに保持するのではなく、必要な部分だけをメモリにロードする仮想化アプローチを採用します。
 
 #### 実装アプローチ
 
-**A. データページング（Data Paging）**
+##### A. データページング（Data Paging）
 
 ```csharp
 public class VirtualizedLogCollection : IList, INotifyCollectionChanged
 {
-    private readonly ILogDataProvider _dataProvider;
-    private readonly int _pageSize = 100;
-    private readonly Dictionary<int, LogEntry[]> _pageCache = new();
-    private int _totalCount;
+    private readonly ILogDataProvider dataProvider;
+    private readonly int pageSize = 100;
+    private readonly Dictionary<int, LogEntry[]> pageCache = new();
+    private int totalCount;
 
     public object this[int index]
     {
         get
         {
-            int pageIndex = index / _pageSize;
-            if (!_pageCache.TryGetValue(pageIndex, out var page))
+            int pageIndex = index / pageSize;
+            if (!pageCache.TryGetValue(pageIndex, out var page))
             {
-                page = _dataProvider.LoadPage(pageIndex, _pageSize);
-                _pageCache[pageIndex] = page;
+                page = dataProvider.LoadPage(pageIndex, pageSize);
+                pageCache[pageIndex] = page;
                 
                 // LRU キャッシュ: 古いページを削除
-                if (_pageCache.Count > 10) // 最大10ページまでキャッシュ
+                if (pageCache.Count > 10) // 最大10ページまでキャッシュ
                 {
-                    var oldestPage = _pageCache.Keys.Min();
-                    _pageCache.Remove(oldestPage);
+                    var oldestPage = pageCache.Keys.Min();
+                    pageCache.Remove(oldestPage);
                 }
             }
-            return page[index % _pageSize];
+            return page[index % pageSize];
         }
     }
 }
 ```
 
 **メリット:**
+
 - メモリ使用量: 100行 × 10ページ = 最大1,000行のみメモリ保持
 - スクロール時に必要な部分だけロード
 - フィルター未適用時の高速表示
 
 **デメリット:**
+
 - データプロバイダーの実装が必要（ファイル、DB、メモリストアなど）
 - DataGrid のスクロール挙動との統合が複雑
 - フィルター適用時は別戦略が必要
 
 ---
 
-**B. 遅延ロード（Lazy Loading）**
+##### B. 遅延ロード（Lazy Loading）
 
 ```csharp
 public class LazyLogEntry
 {
-    private readonly ILogDataProvider _provider;
-    private readonly int _index;
-    private LogEntry? _cached;
+    private readonly ILogDataProvider provider;
+    private readonly int index;
+    private LogEntry? cached;
 
     public string Time => EnsureLoaded().Time;
     public string Source => EnsureLoaded().Source;
@@ -103,20 +106,22 @@ public class LazyLogEntry
 
     private LogEntry EnsureLoaded()
     {
-        if (_cached == null)
+        if (cached == null)
         {
-            _cached = _provider.LoadSingleEntry(_index);
+            cached = provider.LoadSingleEntry(index);
         }
-        return _cached;
+        return cached;
     }
 }
 ```
 
 **メリット:**
+
 - プロパティアクセス時のみデータをロード
 - 表示されていない行はメモリに保持しない
 
 **デメリット:**
+
 - フィルター処理で全件アクセスが必要な場合、効果が限定的
 - プロバイダー呼び出しのオーバーヘッド
 
@@ -131,16 +136,16 @@ public class LazyLogEntry
 ```csharp
 public class IndexedLogCollection
 {
-    private readonly List<LogEntry> _allEntries;
-    private readonly Dictionary<string, Dictionary<string, List<int>>> _indices = new();
+    private readonly List<LogEntry> allEntries;
+    private readonly Dictionary<string, Dictionary<string, List<int>>> indices = new();
 
     public void BuildIndex(string propertyName)
     {
         var index = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
         
-        for (int i = 0; i < _allEntries.Count; i++)
+        for (int i = 0; i < allEntries.Count; i++)
         {
-            var value = GetPropertyValue(_allEntries[i], propertyName);
+            var value = GetPropertyValue(allEntries[i], propertyName);
             var normalized = NormalizeValue(value);
             
             if (!index.ContainsKey(normalized))
@@ -150,12 +155,12 @@ public class IndexedLogCollection
             index[normalized].Add(i);
         }
         
-        _indices[propertyName] = index;
+        indices[propertyName] = index;
     }
 
     public IEnumerable<LogEntry> FilterBySelection(string propertyName, HashSet<string> allowedValues)
     {
-        if (!_indices.TryGetValue(propertyName, out var index))
+        if (!indices.TryGetValue(propertyName, out var index))
         {
             // フォールバック: 全件走査
             return _allEntries.Where(e => allowedValues.Contains(GetPropertyValue(e, propertyName)));
@@ -179,10 +184,12 @@ public class IndexedLogCollection
 ```
 
 **メリット:**
+
 - 選択フィルターの高速化（O(n) → O(1) × 選択数）
 - 特に高頻度フィルター操作で効果的
 
 **デメリット:**
+
 - インデックス構築のコスト（初回のみ）
 - インデックス保持のメモリオーバーヘッド
 - データ更新時のインデックス再構築が必要
@@ -230,10 +237,12 @@ private void RefreshFilterParallel()
 ```
 
 **メリット:**
+
 - マルチコアCPUを活用してフィルター処理を高速化
 - 5,000行以上で効果的
 
 **デメリット:**
+
 - 並列処理のオーバーヘッド（少量データでは逆効果）
 - UI スレッドのブロックに注意（async/await と組み合わせ）
 
@@ -242,33 +251,98 @@ private void RefreshFilterParallel()
 #### C. 段階的フィルタリング（Deferred Refresh）
 
 ```csharp
-private DispatcherTimer? _debounceTimer;
+private DispatcherTimer? debounceTimer;
 
 public void ScheduleFilterRefresh()
 {
-    if (_debounceTimer == null)
+    if (debounceTimer == null)
     {
-        _debounceTimer = new DispatcherTimer
+        debounceTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(300)
         };
-        _debounceTimer.Tick += (s, e) =>
+        debounceTimer.Tick += (s, e) =>
         {
-            _debounceTimer.Stop();
+            debounceTimer.Stop();
             RefreshFilter();
         };
     }
 
-    _debounceTimer.Stop();
-    _debounceTimer.Start();
+    debounceTimer.Stop();
+    debounceTimer.Start();
 }
 ```
 
+**デバウンス間隔 300ms の根拠:**
+
+| 観点 | 根拠 |
+|------|------|
+| タイピング間隔 | 一般的なタイピング速度（40-80 WPM）では文字間隔が 150-300ms |
+| 知覚遅延 | 人間が「即座」と感じる応答時間は < 100ms、「待ち」と感じ始めるのは > 1000ms |
+| 業界標準 | lodash, RxJS, VS Code 検索など多くのライブラリで 200-400ms を採用 |
+| 処理コスト | 10,000行データでフィルター処理 ~100ms → 300ms + 100ms = 400ms で結果表示（許容範囲） |
+
+**適応的デバウンス（推奨拡張）:**
+
+```csharp
+public class AdaptiveDebounceSettings
+{
+    public int NormalDelayMs { get; set; } = 200;      // 通常時（業界標準下限）
+    public int HighLoadDelayMs { get; set; } = 400;    // 高負荷時（業界標準上限）
+    public int IdleDelayMs { get; set; } = 100;        // アイドル時
+    public int HighLoadThreshold { get; set; } = 50;   // 高負荷判定閾値（件/秒）
+}
+```
+
+**デバウンスとスロットリングの分離（リアルタイムログ追加対応）:**
+
+ユーザー入力とコレクション変更で異なる戦略を適用：
+
+| イベント | 戦略 | 間隔 | 理由 |
+|---------|------|------|------|
+| ユーザー入力 | デバウンス | 200-400ms | 入力完了を待つ |
+| コレクション変更 | スロットリング | 500ms | 高頻度更新を抑制 |
+
+```csharp
+// コレクション変更用スロットリング
+private DateTime lastCollectionFilterRefresh;
+private const int MinCollectionRefreshIntervalMs = 500;
+
+private void OnCollectionChanged()
+{
+    var elapsed = DateTime.Now - lastCollectionFilterRefresh;
+    if (elapsed.TotalMilliseconds >= MinCollectionRefreshIntervalMs)
+    {
+        RefreshFilter();
+        lastCollectionFilterRefresh = DateTime.Now;
+    }
+    // 間隔内の変更は次のサイクルで自動的に反映
+}
+```
+
+**スロットリング 500ms の根拠:**
+
+| 観点 | 評価 |
+|------|------|
+| UI保護 | 2回/秒のフィルター更新で十分な負荷軽減 |
+| 遅延許容 | 最悪600ms（500ms + 処理100ms）は「待ち」1000ms未満 |
+| CPU負荷 | フィルター100ms × 2回 = 200ms/秒（20%以下） |
+| バッファ処理との整合 | 50ms × 10回 = 500ms で切りが良い |
+
+| スロットリング値 | フィルター頻度 | 最悪遅延 | 評価 |
+|-----------------|--------------|---------|------|
+| 300ms | 3.3回/秒 | 400ms | ⚠️ CPU負荷やや高い |
+| **500ms** | **2回/秒** | **600ms** | **✅ バランス良好** |
+| 750ms | 1.3回/秒 | 850ms | ⚠️ 遅延が目立つ |
+| 1000ms | 1回/秒 | 1100ms | ❌ 「待ち」と感じる |
+
 **メリット:**
+
 - ユーザーの入力中に過剰なフィルター処理を防止
 - UI の応答性向上
 
 **デメリット:**
+
 - リアルタイム性が若干低下
 - タイマー管理の複雑さ
 
@@ -282,37 +356,39 @@ public void ScheduleFilterRefresh()
 public class CompactLogEntry
 {
     // string の代わりに ReadOnlyMemory<char> や Span<T> を検討
-    private readonly string[] _fields; // 配列で保持（プロパティごとのオーバーヘッド削減）
+    private readonly string[] fields; // 配列で保持（プロパティごとのオーバーヘッド削減）
     
-    public string Time => _fields[0];
-    public string IFNum => _fields[1];
-    public string Source => _fields[2];
+    public string Time => fields[0];
+    public string IFNum => fields[1];
+    public string Source => fields[2];
     // ...
     
     // DateTime のキャッシュ（遅延評価）
-    private DateTime? _timeStamp;
+    private DateTime? timeStamp;
     public DateTime? TimeStamp
     {
         get
         {
-            if (!_timeStamp.HasValue && !string.IsNullOrWhiteSpace(Time))
+            if (!timeStamp.HasValue && !string.IsNullOrWhiteSpace(Time))
             {
                 if (TryParseDateTime(Time, out var parsed))
                 {
-                    _timeStamp = parsed;
+                    timeStamp = parsed;
                 }
             }
-            return _timeStamp;
+            return timeStamp;
         }
     }
 }
 ```
 
 **メリット:**
+
 - メモリレイアウトの最適化
 - オブジェクトヘッダーのオーバーヘッド削減
 
 **デメリット:**
+
 - コードの可読性低下
 - バインディングの複雑化
 
@@ -323,12 +399,12 @@ public class CompactLogEntry
 ```csharp
 public class StringPool
 {
-    private readonly ConcurrentDictionary<string, string> _pool = new();
+    private readonly ConcurrentDictionary<string, string> pool = new();
 
     public string Intern(string value)
     {
         if (string.IsNullOrEmpty(value)) return value;
-        return _pool.GetOrAdd(value, v => v);
+        return pool.GetOrAdd(value, v => v);
     }
 }
 
@@ -341,10 +417,12 @@ var entry = new LogEntry
 ```
 
 **メリット:**
+
 - 同じ値（例: "SRC0", "DST1"など）が多数存在する場合、メモリを大幅削減
 - ログデータは重複が多いため効果的
 
 **デメリット:**
+
 - StringPool 自体のメモリ
 - 並行アクセス時のロック競合
 
@@ -365,10 +443,12 @@ var entry = new LogEntry
 ```
 
 **メリット:**
+
 - UI要素の再利用でメモリ削減
 - スクロール性能向上
 
 **デメリット:**
+
 - 複雑なセルテンプレートでは効果が限定的
 
 ---
@@ -421,11 +501,13 @@ if (distinctValues is null)
 ```
 
 **メリット:**
+
 - 10,000件のユニーク値を持つ列でメニュー生成が即座に完了
 - UI描画のブロッキングを防止
 - ユーザーに適切なフィルター方法を案内
 
 **デメリット:**
+
 - 選択フィルターが使えない列が発生
 - 上限値（100件）の調整が必要な場合あり
 
@@ -441,7 +523,7 @@ if (distinctValues is null)
 // PropertyIndex.cs - プロパティ値からアイテムインデックスへのマッピング
 public class PropertyIndex
 {
-    private Dictionary<string, Dictionary<string, List<int>>> _indices = new();
+    private Dictionary<string, Dictionary<string, List<int>>> indices = new();
     
     // インデックス構築（ItemsSource 変更時に呼び出し）
     public void BuildIndex(IList source, string propertyName) { ... }
@@ -457,16 +539,17 @@ private static readonly HashSet<string> IndexableProperties =
 private void BuildPropertyIndices()
 {
     foreach (var prop in IndexableProperties)
-        _propertyIndex.BuildIndex(ItemsSource as IList, prop);
+        propertyIndex.BuildIndex(ItemsSource as IList, prop);
 }
 ```
 
 **メリット:**
+
 - GetDistinctValues が O(n) → O(1) に高速化
 - FilterMetrics でキャッシュヒット/ミスを追跡可能
 - 選択フィルターメニュー生成が即座に完了
 
-2. **LogEntry の軽量化（TimeStamp キャッシュ）** ✅ 実装済み
+1. **LogEntry の軽量化（TimeStamp キャッシュ）** ✅ 実装済み
    - 実装コスト: 中
    - 効果: 中
    - 既存コードへの影響: 小（バインディング変更不要）
@@ -474,24 +557,25 @@ private void BuildPropertyIndices()
 
 ```csharp
 // LogEntry.cs - TimeStamp の遅延評価とキャッシュ
-private bool _timeStampCached;
-private DateTime _timeStampValue;
+private bool timeStampCached;
+private DateTime timeStampValue;
 
 public DateTime TimeStamp
 {
     get
     {
-        if (!_timeStampCached)
+        if (!timeStampCached)
         {
-            _timeStampValue = ParseTimeStamp(Time);
-            _timeStampCached = true;
+            timeStampValue = ParseTimeStamp(Time);
+            timeStampCached = true;
         }
-        return _timeStampValue;
+        return timeStampValue;
     }
 }
 ```
 
 **メリット:**
+
 - 繰り返しフィルター時のパース処理を回避
 - DateTime.TryParseExact の呼び出し回数を大幅削減
 
@@ -508,9 +592,9 @@ public DateTime TimeStamp
 
 | データ量 | 現状（推定） | 目標 |
 |---------|------------|------|
-| 1,000行 | フィルター: 50ms<br>メモリ: 5MB | フィルター: 30ms<br>メモリ: 3MB |
-| 10,000行 | フィルター: 500ms<br>メモリ: 50MB | フィルター: 100ms<br>メモリ: 20MB |
-| 100,000行 | フィルター: 5000ms<br>メモリ: 500MB | フィルター: 500ms<br>メモリ: 100MB |
+| 1,000行 | フィルター: 50ms / メモリ: 5MB | フィルター: 30ms / メモリ: 3MB |
+| 10,000行 | フィルター: 500ms / メモリ: 50MB | フィルター: 100ms / メモリ: 20MB |
+| 100,000行 | フィルター: 5000ms / メモリ: 500MB | フィルター: 500ms / メモリ: 100MB |
 
 ---
 

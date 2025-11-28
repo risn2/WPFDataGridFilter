@@ -15,24 +15,24 @@ namespace WPFDataGridFilter.Helpers
     {
         #region フィールド
         /// <summary>プロパティ名 → (値 → インデックスリスト) のマップ</summary>
-        private readonly ConcurrentDictionary<string, Dictionary<string, List<int>>> _indices = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, Dictionary<string, List<int>>> indices = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>プロパティアクセサーのキャッシュ</summary>
-        private readonly ConcurrentDictionary<(Type, string), Func<object, string?>> _accessors = new();
+        private readonly ConcurrentDictionary<(Type, string), Func<object, string?>> accessors = new();
 
         /// <summary>インデックス構築元のデータソース</summary>
-        private IList? _source;
+        private IList? dataSource;
 
         /// <summary>データソースのバージョン（変更検出用）</summary>
-        private int _sourceVersion;
+        private int sourceVersion;
         #endregion
 
         #region プロパティ
         /// <summary>インデックスが構築済みのプロパティ一覧</summary>
-        public IReadOnlyCollection<string> IndexedProperties => _indices.Keys.ToList();
+        public IReadOnlyCollection<string> IndexedProperties => indices.Keys.ToList();
 
         /// <summary>データソースが設定済みか</summary>
-        public bool HasSource => _source != null;
+        public bool HasSource => dataSource != null;
         #endregion
 
         #region メソッド
@@ -42,11 +42,11 @@ namespace WPFDataGridFilter.Helpers
         /// <param name="source">インデックス対象のデータソース</param>
         public void SetSource(IList? source)
         {
-            if (ReferenceEquals(_source, source)) return;
+            if (ReferenceEquals(dataSource, source)) return;
 
-            _source = source;
-            _sourceVersion++;
-            _indices.Clear();
+            dataSource = source;
+            sourceVersion++;
+            indices.Clear();
         }
 
         /// <summary>
@@ -55,13 +55,13 @@ namespace WPFDataGridFilter.Helpers
         /// <param name="propertyName">対象プロパティ名</param>
         public void BuildIndex(string propertyName)
         {
-            if (_source == null || string.IsNullOrWhiteSpace(propertyName)) return;
+            if (dataSource == null || string.IsNullOrWhiteSpace(propertyName)) return;
 
             var index = new Dictionary<string, List<int>>(StringComparer.Ordinal);
 
-            for (int i = 0; i < _source.Count; i++)
+            for (int i = 0; i < dataSource.Count; i++)
             {
-                var item = _source[i];
+                var item = dataSource[i];
                 if (item == null) continue;
 
                 var value = GetPropertyValue(item, propertyName) ?? string.Empty;
@@ -74,7 +74,7 @@ namespace WPFDataGridFilter.Helpers
                 list.Add(i);
             }
 
-            _indices[propertyName] = index;
+            indices[propertyName] = index;
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace WPFDataGridFilter.Helpers
         /// <returns>インデックスが存在すれば true</returns>
         public bool HasIndex(string propertyName)
         {
-            return _indices.ContainsKey(propertyName);
+            return indices.ContainsKey(propertyName);
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace WPFDataGridFilter.Helpers
         {
             var result = new HashSet<int>();
 
-            if (!_indices.TryGetValue(propertyName, out var index))
+            if (!indices.TryGetValue(propertyName, out var index))
             {
                 return result;
             }
@@ -123,7 +123,7 @@ namespace WPFDataGridFilter.Helpers
         /// <returns>値一覧（インデックス未構築の場合は null）</returns>
         public IReadOnlyList<string>? GetDistinctValuesFromIndex(string propertyName)
         {
-            if (!_indices.TryGetValue(propertyName, out var index))
+            if (!indices.TryGetValue(propertyName, out var index))
             {
                 return null;
             }
@@ -138,7 +138,7 @@ namespace WPFDataGridFilter.Helpers
         /// </summary>
         public void ClearAll()
         {
-            _indices.Clear();
+            indices.Clear();
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace WPFDataGridFilter.Helpers
         /// <param name="propertyName">対象プロパティ名</param>
         public void Clear(string propertyName)
         {
-            _indices.TryRemove(propertyName, out _);
+            indices.TryRemove(propertyName, out _);
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace WPFDataGridFilter.Helpers
         {
             var key = (item.GetType(), propertyName);
 
-            var accessor = _accessors.GetOrAdd(key, static tuple =>
+            var accessor = accessors.GetOrAdd(key, static tuple =>
             {
                 var (type, name) = tuple;
                 var property = type.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);

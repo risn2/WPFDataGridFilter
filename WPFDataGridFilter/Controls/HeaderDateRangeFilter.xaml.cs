@@ -18,7 +18,7 @@ namespace WPFDataGridFilter.Controls
 
         #region フィールド
         /// <summary>再入防止フラグ</summary>
-        private bool _isUpdating;
+        private bool isUpdating;
         #endregion // フィールド
 
         #region 依存関係プロパティ フィールド
@@ -229,8 +229,8 @@ namespace WPFDataGridFilter.Controls
         private void UpdateComposed()
         {
             // 再入防止
-            if (_isUpdating) return;
-            _isUpdating = true;
+            if (isUpdating) return;
+            isUpdating = true;
 
             try
             {
@@ -250,7 +250,7 @@ namespace WPFDataGridFilter.Controls
             }
             finally
             {
-                _isUpdating = false;
+                isUpdating = false;
             }
         }
 

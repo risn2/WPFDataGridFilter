@@ -18,59 +18,75 @@ namespace WPFDataGridFilter.Helpers
         #endregion
 
         #region フィールド
-        private int _totalItems;
-        private int _filteredItems;
-        private double _filterDurationMs;
-        private long _memoryUsageBytes;
-        private int _cacheHitCount;
-        private int _cacheMissCount;
-        private bool _isParallelProcessing;
+        /// <summary>総アイテム数</summary>
+        private int totalItems;
+
+        /// <summary>フィルター後のアイテム数</summary>
+        private int filteredItems;
+
+        /// <summary>フィルター処理時間（ミリ秒）</summary>
+        private double filterDurationMs;
+
+        /// <summary>メモリ使用量（バイト）</summary>
+        private long memoryUsageBytes;
+
+        /// <summary>キャッシュヒット回数</summary>
+        private int cacheHitCount;
+
+        /// <summary>キャッシュミス回数</summary>
+        private int cacheMissCount;
+
+        /// <summary>並列処理使用中か</summary>
+        private bool isParallelProcessing;
+
+        /// <summary>現在のデバウンス間隔（ミリ秒）</summary>
+        private int currentDebounceMs = 200;
         #endregion
 
         #region プロパティ
         /// <summary>総アイテム数</summary>
         public int TotalItems
         {
-            get => _totalItems;
-            set { if (_totalItems != value) { _totalItems = value; OnPropertyChanged(); } }
+            get => totalItems;
+            set { if (totalItems != value) { totalItems = value; OnPropertyChanged(); } }
         }
 
         /// <summary>フィルター後のアイテム数</summary>
         public int FilteredItems
         {
-            get => _filteredItems;
-            set { if (_filteredItems != value) { _filteredItems = value; OnPropertyChanged(); } }
+            get => filteredItems;
+            set { if (filteredItems != value) { filteredItems = value; OnPropertyChanged(); } }
         }
 
         /// <summary>フィルター処理時間（ミリ秒）</summary>
         public double FilterDurationMs
         {
-            get => _filterDurationMs;
-            set { if (Math.Abs(_filterDurationMs - value) > double.Epsilon) { _filterDurationMs = value; OnPropertyChanged(); } }
+            get => filterDurationMs;
+            set { if (Math.Abs(filterDurationMs - value) > double.Epsilon) { filterDurationMs = value; OnPropertyChanged(); } }
         }
 
         /// <summary>メモリ使用量（バイト）</summary>
         public long MemoryUsageBytes
         {
-            get => _memoryUsageBytes;
-            set { if (_memoryUsageBytes != value) { _memoryUsageBytes = value; OnPropertyChanged(); OnPropertyChanged(nameof(MemoryUsageMB)); } }
+            get => memoryUsageBytes;
+            set { if (memoryUsageBytes != value) { memoryUsageBytes = value; OnPropertyChanged(); OnPropertyChanged(nameof(MemoryUsageMB)); } }
         }
 
         /// <summary>メモリ使用量（MB）</summary>
-        public double MemoryUsageMB => _memoryUsageBytes / (1024.0 * 1024.0);
+        public double MemoryUsageMB => memoryUsageBytes / (1024.0 * 1024.0);
 
         /// <summary>キャッシュヒット回数</summary>
         public int CacheHitCount
         {
-            get => _cacheHitCount;
-            set { if (_cacheHitCount != value) { _cacheHitCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(CacheHitRate)); } }
+            get => cacheHitCount;
+            set { if (cacheHitCount != value) { cacheHitCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(CacheHitRate)); } }
         }
 
         /// <summary>キャッシュミス回数</summary>
         public int CacheMissCount
         {
-            get => _cacheMissCount;
-            set { if (_cacheMissCount != value) { _cacheMissCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(CacheHitRate)); } }
+            get => cacheMissCount;
+            set { if (cacheMissCount != value) { cacheMissCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(CacheHitRate)); } }
         }
 
         /// <summary>キャッシュヒット率（0.0〜1.0）</summary>
@@ -78,16 +94,23 @@ namespace WPFDataGridFilter.Helpers
         {
             get
             {
-                var total = _cacheHitCount + _cacheMissCount;
-                return total > 0 ? (double)_cacheHitCount / total : 0.0;
+                var total = cacheHitCount + cacheMissCount;
+                return total > 0 ? (double)cacheHitCount / total : 0.0;
             }
         }
 
         /// <summary>並列処理を使用中か</summary>
         public bool IsParallelProcessing
         {
-            get => _isParallelProcessing;
-            set { if (_isParallelProcessing != value) { _isParallelProcessing = value; OnPropertyChanged(); } }
+            get => isParallelProcessing;
+            set { if (isParallelProcessing != value) { isParallelProcessing = value; OnPropertyChanged(); } }
+        }
+
+        /// <summary>現在のデバウンス間隔（ミリ秒）</summary>
+        public int CurrentDebounceMs
+        {
+            get => currentDebounceMs;
+            set { if (currentDebounceMs != value) { currentDebounceMs = value; OnPropertyChanged(); } }
         }
         #endregion
 
@@ -128,6 +151,7 @@ namespace WPFDataGridFilter.Helpers
             CacheHitCount = 0;
             CacheMissCount = 0;
             IsParallelProcessing = false;
+            CurrentDebounceMs = 200;
         }
         #endregion
     }
