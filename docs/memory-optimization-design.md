@@ -397,6 +397,38 @@ var entry = new LogEntry
    - 効果: 中
    - 既存コードへの影響: 小
 
+### フェーズ1.5: 選択フィルターの最適化（短期追加）
+
+1. **DistinctValues の上限制限** ✅ 実装済み
+   - 実装コスト: 低
+   - 効果: 高（Time, Data列など繰り返しのないデータで顕著）
+   - 既存コードへの影響: 小
+   - 詳細: 候補数が100件を超える列では選択フィルターを無効化し、テキストフィルター使用を促す
+
+```csharp
+// GetDistinctValues で上限チェック
+if (values.Count > MaxDistinctValuesForSelection)
+{
+    return null; // 選択フィルター無効化
+}
+
+// PopulateFilterMenu でフォールバック
+if (distinctValues is null)
+{
+    menu.Items.Add(CreateDisabledMenuItem("(候補が多すぎるため選択フィルター無効)"));
+    menu.Items.Add(CreateDisabledMenuItem("テキストフィルターを使用してください"));
+}
+```
+
+**メリット:**
+- 10,000件のユニーク値を持つ列でメニュー生成が即座に完了
+- UI描画のブロッキングを防止
+- ユーザーに適切なフィルター方法を案内
+
+**デメリット:**
+- 選択フィルターが使えない列が発生
+- 上限値（100件）の調整が必要な場合あり
+
 ### フェーズ2: 構造改善（中期）
 
 1. **インデックス構築**
@@ -512,4 +544,5 @@ public class FilterMetrics
 
 ## 変更履歴
 
+- 2025-11-28: フェーズ1.5（DistinctValues上限制限）を追加・実装
 - 2025-11-28: 初版作成（メモリ最適化の設計検討）

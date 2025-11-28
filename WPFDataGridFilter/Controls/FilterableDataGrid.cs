@@ -7,10 +7,13 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Threading;
+using WPFDataGridFilter.Helpers;
 using WPFDataGridFilter.ViewModels;
 
 namespace WPFDataGridFilter.Controls
@@ -81,6 +84,33 @@ namespace WPFDataGridFilter.Controls
             "yyyy-MM-ddTHH:mm:ss.fff",
             "yyyy-MM-ddTHH:mm:ss"
         };
+
+        /// <summary>フィルター更新デバウンス用タイマー</summary>
+        private DispatcherTimer? _debounceTimer;
+
+        /// <summary>デバウンス待機時間（ミリ秒）</summary>
+        private const int DebounceDelayMs = 300;
+
+        /// <summary>並列処理を使用する閾値（アイテム数）</summary>
+        private const int ParallelThreshold = 5000;
+
+        /// <summary>フィルター結果キャッシュ（並列処理用）</summary>
+        private List<object>? _filteredResultsCache;
+
+        /// <summary>キャッシュが有効か</summary>
+        private bool _useFilteredCache;
+
+        /// <summary>並列処理用にキャプチャした TimeFrom</summary>
+        private DateTime? _capturedTimeFrom;
+
+        /// <summary>並列処理用にキャプチャした TimeTo</summary>
+        private DateTime? _capturedTimeTo;
+
+        /// <summary>並列処理用にキャプチャした FilterTexts</summary>
+        private List<KeyValuePair<string, string?>>? _capturedFilterTexts;
+
+        /// <summary>並列処理用にキャプチャした FilterSelections</summary>
+        private List<KeyValuePair<string, HashSet<string>>>? _capturedFilterSelections;
         #endregion // フィールド
 
         #region プロパティ
@@ -178,6 +208,9 @@ namespace WPFDataGridFilter.Controls
 
         /// <summary>日時フィルタークリアコマンド参照</summary>
         public ICommand ClearTimeRangeCommand { get; }
+
+        /// <summary>フィルター性能メトリクス参照</summary>
+        public FilterMetrics Metrics { get; } = new();
         #endregion // プロパティ
 
         #region コンストラクター
@@ -190,6 +223,14 @@ namespace WPFDataGridFilter.Controls
             IsReadOnly = true;
             HeadersVisibility = DataGridHeadersVisibility.Column;
 
+            // UI 仮想化の最適化設定
+            VirtualizingPanel.SetIsVirtualizing(this, true);
+            VirtualizingPanel.SetVirtualizationMode(this, VirtualizationMode.Recycling);
+            VirtualizingPanel.SetCacheLength(this, new VirtualizationCacheLength(10, 10));
+            VirtualizingPanel.SetCacheLengthUnit(this, VirtualizationCacheLengthUnit.Page);
+            EnableRowVirtualization = true;
+            EnableColumnVirtualization = true;
+
             ClearTimeRangeCommand = new RelayCommand(_ =>
             {
                 TimeFrom = null;
@@ -198,8 +239,8 @@ namespace WPFDataGridFilter.Controls
 
             ClearAllFiltersCommand = new RelayCommand(_ => ClearAllFilters(), _ => HasActiveFilters);
 
-            FilterTexts.CollectionChanged += (_, __) => RefreshFilter();
-            FilterSelections.CollectionChanged += (_, __) => RefreshFilter();
+            FilterTexts.CollectionChanged += (_, __) => ScheduleFilterRefresh();
+            FilterSelections.CollectionChanged += (_, __) => ScheduleFilterRefresh();
 
             Unloaded += (_, __) => DetachCollectionEvents();
         }
@@ -283,6 +324,31 @@ namespace WPFDataGridFilter.Controls
                 collectionChangedSource.CollectionChanged -= SourceIncc_CollectionChanged;
                 collectionChangedSource = null;
             }
+
+            // デバウンスタイマーを停止
+            _debounceTimer?.Stop();
+        }
+
+        /// <summary>
+        /// デバウンス付きフィルター更新をスケジュール
+        /// </summary>
+        private void ScheduleFilterRefresh()
+        {
+            if (_debounceTimer == null)
+            {
+                _debounceTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(DebounceDelayMs)
+                };
+                _debounceTimer.Tick += (_, __) =>
+                {
+                    _debounceTimer.Stop();
+                    RefreshFilter();
+                };
+            }
+
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
         }
 
         /// <summary>
@@ -298,12 +364,146 @@ namespace WPFDataGridFilter.Controls
             }
 
             var stopwatch = Stopwatch.StartNew();
-            ItemsView.Refresh();
+
+            // 大量データの場合は並列処理を使用
+            var sourceList = ItemsSource as IList;
+            if (sourceList != null && sourceList.Count >= ParallelThreshold)
+            {
+                RefreshFilterParallel(sourceList);
+                Metrics.IsParallelProcessing = true;
+            }
+            else
+            {
+                // 通常のフィルター処理
+                _useFilteredCache = false;
+                _filteredResultsCache = null;
+                ItemsView.Refresh();
+                Metrics.IsParallelProcessing = false;
+            }
+
             stopwatch.Stop();
 
             FilterElapsedMs = stopwatch.Elapsed.TotalMilliseconds;
+            Metrics.FilterDurationMs = FilterElapsedMs;
+            Metrics.UpdateMemoryUsage();
             UpdateCounts();
             NotifyFilterStateChanged();
+        }
+
+        /// <summary>
+        /// 大量データ向けの並列フィルター処理
+        /// </summary>
+        /// <param name="source">フィルター対象リスト</param>
+        private void RefreshFilterParallel(IList source)
+        {
+            // UIスレッドでのみアクセス可能なプロパティを事前にキャプチャ
+            _capturedTimeFrom = TimeFrom;
+            _capturedTimeTo = TimeTo;
+            _capturedFilterTexts = FilterTexts.ToList();
+            _capturedFilterSelections = FilterSelections
+                .Select(kv => new KeyValuePair<string, HashSet<string>>(kv.Key, new HashSet<string>(kv.Value, StringComparer.Ordinal)))
+                .ToList();
+
+            // 並列でフィルター処理を実行
+            var filtered = source.Cast<object>()
+                .AsParallel()
+                .AsOrdered()
+                .Where(item => FilterParallel(item))
+                .ToList();
+
+            // キャプチャをクリア
+            _capturedTimeFrom = null;
+            _capturedTimeTo = null;
+            _capturedFilterTexts = null;
+            _capturedFilterSelections = null;
+
+            _filteredResultsCache = filtered;
+            _useFilteredCache = true;
+
+            // キャッシュを使ったフィルターで Refresh
+            ItemsView!.Refresh();
+
+            _useFilteredCache = false;
+        }
+
+        /// <summary>
+        /// 並列処理用のフィルター判定（キャプチャ済みの値を使用）
+        /// </summary>
+        /// <param name="item">判定対象アイテム</param>
+        /// <returns>表示対象なら true</returns>
+        private bool FilterParallel(object item)
+        {
+            if (item is null) return false;
+
+            // 日時フィルターを確認（キャプチャ済みの値を使用）
+            if (!ApplyTimeFilterParallel(item)) return false;
+
+            // 選択フィルター（キャプチャ済みの値を使用）
+            if (_capturedFilterSelections != null)
+            {
+                foreach (var selection in _capturedFilterSelections)
+                {
+                    if (string.IsNullOrWhiteSpace(selection.Key)) continue;
+                    if (string.Equals(selection.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var allowed = selection.Value;
+                    if (allowed.Count == 0) return false;
+
+                    var candidate = NormalizeValue(ResolveMemberAsString(item, selection.Key));
+                    if (!allowed.Contains(candidate)) return false;
+                }
+            }
+
+            // テキストフィルター（キャプチャ済みの値を使用）
+            if (_capturedFilterTexts != null)
+            {
+                foreach (var filter in _capturedFilterTexts)
+                {
+                    if (string.IsNullOrWhiteSpace(filter.Key)) continue;
+                    if (string.Equals(filter.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    if (!Match(ResolveMemberAsString(item, filter.Key), filter.Value)) return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 並列処理用の日時フィルター判定（キャプチャ済みの値を使用）
+        /// </summary>
+        /// <param name="item">判定対象アイテム</param>
+        /// <returns>条件を満たす場合は true</returns>
+        private bool ApplyTimeFilterParallel(object item)
+        {
+            var timeFilterText = _capturedFilterTexts?.FirstOrDefault(kv =>
+                string.Equals(kv.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)).Value;
+            var hasTimeKey = !string.IsNullOrWhiteSpace(timeFilterText);
+            var hasRange = _capturedTimeFrom.HasValue || _capturedTimeTo.HasValue;
+
+            if (!hasTimeKey && !hasRange) return true;
+
+            var timeText = ResolveMemberAsString(item, TimeFilterKey);
+            var normalizedTime = NormalizeValue(timeText);
+
+            if (!Match(timeText, timeFilterText)) return false;
+
+            var timeSelection = _capturedFilterSelections?.FirstOrDefault(kv =>
+                string.Equals(kv.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)).Value;
+            if (timeSelection != null && timeSelection.Count > 0)
+            {
+                if (!timeSelection.Contains(normalizedTime)) return false;
+            }
+
+            if (!hasRange) return true;
+
+            var candidate = ResolveDateTimeCandidate(item, timeText);
+            if (!candidate.HasValue) return false;
+
+            if (_capturedTimeFrom.HasValue && candidate.Value < _capturedTimeFrom.Value) return false;
+            if (_capturedTimeTo.HasValue && candidate.Value > _capturedTimeTo.Value) return false;
+
+            return true;
         }
 
         /// <summary>
@@ -315,20 +515,16 @@ namespace WPFDataGridFilter.Controls
         {
             if (item is null) return false;
 
-            // 日時フィルターを確認
-            if (!ApplyTimeFilter(item)) return false;
-
-            foreach (var filter in FilterTexts)
+            // 並列処理済みキャッシュがある場合はそれを参照
+            if (_useFilteredCache && _filteredResultsCache != null)
             {
-                if (string.IsNullOrWhiteSpace(filter.Key)) continue;
-
-                // Time キーは日時フィルターで処理済み
-                if (string.Equals(filter.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)) continue;
-
-                // キーに対応するプロパティ値がフィルターにマッチするか判定
-                if (!Match(ResolveMemberAsString(item, filter.Key), filter.Value)) return false;
+                return _filteredResultsCache.Contains(item);
             }
 
+            // 日時フィルターを確認（軽量な判定を先に）
+            if (!ApplyTimeFilter(item)) return false;
+
+            // 選択フィルター（比較的軽量）
             foreach (var selection in FilterSelections)
             {
                 if (string.IsNullOrWhiteSpace(selection.Key)) continue;
@@ -347,6 +543,18 @@ namespace WPFDataGridFilter.Controls
                 {
                     return false;
                 }
+            }
+
+            // テキストフィルター（正規表現、最もコスト高）
+            foreach (var filter in FilterTexts)
+            {
+                if (string.IsNullOrWhiteSpace(filter.Key)) continue;
+
+                // Time キーは日時フィルターで処理済み
+                if (string.Equals(filter.Key, TimeFilterKey, StringComparison.OrdinalIgnoreCase)) continue;
+
+                // キーに対応するプロパティ値がフィルターにマッチするか判定
+                if (!Match(ResolveMemberAsString(item, filter.Key), filter.Value)) return false;
             }
 
             return true;
@@ -406,14 +614,21 @@ namespace WPFDataGridFilter.Controls
             }
 
             FilteredCount = ItemsView?.Cast<object>().Count() ?? 0;
+
+            // メトリクスも更新
+            Metrics.TotalItems = TotalCount;
+            Metrics.FilteredItems = FilteredCount;
         }
+
+        /// <summary>選択フィルターで表示する候補の上限数</summary>
+        private const int MaxDistinctValuesForSelection = 500;
 
         /// <summary>
         /// 指定プロパティの重複排除済み値一覧を取得
         /// </summary>
         /// <param name="propertyName">対象プロパティ名</param>
-        /// <returns>値一覧</returns>
-        internal IReadOnlyList<string> GetDistinctValues(string propertyName)
+        /// <returns>値一覧（上限を超えた場合は null）</returns>
+        internal IReadOnlyList<string>? GetDistinctValues(string propertyName)
         {
             if (string.IsNullOrWhiteSpace(propertyName) || ItemsSource is null)
             {
@@ -426,6 +641,12 @@ namespace WPFDataGridFilter.Controls
             {
                 var candidate = NormalizeValue(ResolveMemberAsString(item, propertyName));
                 values.Add(candidate);
+
+                // 上限を超えた場合は早期終了（選択フィルター無効化）
+                if (values.Count > MaxDistinctValuesForSelection)
+                {
+                    return null;
+                }
             }
 
             var list = values.ToList();
@@ -456,7 +677,7 @@ namespace WPFDataGridFilter.Controls
         /// </summary>
         private static void OnFilterPropertyChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)
         {
-            ((FilterableDataGrid)dependencyObject).RefreshFilter();
+            ((FilterableDataGrid)dependencyObject).ScheduleFilterRefresh();
         }
 
         /// <summary>

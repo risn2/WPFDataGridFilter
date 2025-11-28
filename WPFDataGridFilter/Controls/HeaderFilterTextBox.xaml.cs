@@ -209,7 +209,7 @@ namespace WPFDataGridFilter.Controls
                 e.Handled = true;
             }
         }
-        #endregion // イベント ハンドラー
+        #endregion // イベントハンドラー
         #endregion // メソッド
 
         #region ヘルパー
@@ -311,13 +311,21 @@ namespace WPFDataGridFilter.Controls
                 return;
             }
 
+            var distinctValues = grid.GetDistinctValues(filterKey);
+
+            // 候補が多すぎる場合はテキストフィルター専用モードに
+            bool tooManyValues = distinctValues is null;
+
             currentChoices.Clear();
-            currentChoices.AddRange(grid.GetDistinctValues(filterKey).Select(NormalizeValue));
+            if (!tooManyValues && distinctValues != null)
+            {
+                currentChoices.AddRange(distinctValues.Select(NormalizeValue));
+            }
 
             currentSelection.Clear();
             selectionIsAll = true;
 
-            if (grid.FilterSelections.TryGetValue(filterKey, out var stored))
+            if (!tooManyValues && grid.FilterSelections.TryGetValue(filterKey, out var stored))
             {
                 foreach (var value in stored)
                 {
@@ -337,6 +345,16 @@ namespace WPFDataGridFilter.Controls
 
             menu.Items.Add(CreateSimpleMenuItem("テキストフィルターを表示", _ => ExpandTextFilter()));
             menu.Items.Add(CreateSimpleMenuItem("テキストフィルターをクリア", _ => ExecuteClear()));
+
+            // 候補が多すぎる場合は選択フィルターを無効化
+            if (tooManyValues)
+            {
+                menu.Items.Add(new Separator());
+                menu.Items.Add(CreateDisabledMenuItem("(候補が多すぎるため選択フィルター無効)"));
+                menu.Items.Add(CreateDisabledMenuItem("テキストフィルターを使用してください"));
+                return;
+            }
+
             menu.Items.Add(new Separator());
             menu.Items.Add(CreateSimpleMenuItem("すべて選択", _ => SelectAll(grid, filterKey)));
             menu.Items.Add(CreateSimpleMenuItem("すべて解除", _ => SelectNone(grid, filterKey)));

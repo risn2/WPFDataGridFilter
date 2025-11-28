@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using WPFDataGridFilter.Helpers;
 using WPFDataGridFilter.Models;
 
 namespace WPFDataGridFilter.ViewModels
@@ -31,15 +32,20 @@ namespace WPFDataGridFilter.ViewModels
 
         public MainViewModel()
         {
-            for (int i = 0; i < 200; i++)
+            // 大量データ生成（10000件）でプロトタイプテスト
+            const int itemCount = 10000;
+            var stringPool = StringPool.Shared;
+
+            for (int i = 0; i < itemCount; i++)
             {
                 var entry = new LogEntry
                 {
                     Time = DateTime.Now.AddMinutes(-i).ToString("yyyy/MM/dd HH:mm:ss.fff"),
-                    IFNum = ((i % 3) + 1).ToString(),
-                    Source = "SRC" + (i % 5),
-                    Destination = "DST" + (i % 7),
-                    Event = i % 2 == 0 ? "SEND" : "RECV"
+                    // StringPool でインターン化（重複文字列のメモリ削減）
+                    IFNum = stringPool.Intern(((i % 3) + 1).ToString()),
+                    Source = stringPool.Intern("SRC" + (i % 5)),
+                    Destination = stringPool.Intern("DST" + (i % 7)),
+                    Event = stringPool.Intern(i % 2 == 0 ? "SEND" : "RECV")
                 };
 
                 entry.Data = i % 4 == 0
