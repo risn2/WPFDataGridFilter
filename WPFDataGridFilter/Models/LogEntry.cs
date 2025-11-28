@@ -95,5 +95,38 @@ namespace WPFDataGridFilter.Models
             }
         }
         #endregion プロパティ（内部用）
+
+        #region メソッド
+        /// <summary>
+        /// 状態をリセット（オブジェクトプール返却用）
+        /// </summary>
+        public void Reset()
+        {
+            Time = null;
+            IFNum = null;
+            Source = null;
+            Destination = null;
+            Event = null;
+            Data = null;
+            timeStampCached = false;
+            timeStampValue = null;
+        }
+
+        /// <summary>
+        /// StringPool を使って文字列をインターン化。
+        /// 重複する文字列のメモリ使用を削減します。
+        /// </summary>
+        /// <param name="pool">使用する StringPool</param>
+        public void InternStrings(Helpers.StringPool pool)
+        {
+            if (pool == null) return;
+
+            IFNum = pool.Intern(IFNum);
+            Source = pool.Intern(Source);
+            Destination = pool.Intern(Destination);
+            Event = pool.Intern(Event);
+            // Time と Data はユニークな値が多いためインターンしない
+        }
+        #endregion メソッド
     }
 }

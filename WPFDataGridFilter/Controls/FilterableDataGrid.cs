@@ -802,6 +802,9 @@ namespace WPFDataGridFilter.Controls
             {
                 // Reset の場合は推定値を加算
                 recentAddCount += 10;
+
+                // Reset（バッチ追加）時はインデックスを再構築
+                BuildPropertyIndices();
             }
 
             // 適応的デバウンス間隔を更新
