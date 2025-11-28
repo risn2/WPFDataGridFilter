@@ -28,7 +28,8 @@
                                    Margin="8"
                                    ItemsSource="{Binding Items}"
                                    MouseDoubleClick="LogGrid_MouseDoubleClick"
-                                   behaviors:ThreeStateSortBehavior.IsEnabled="True">
+                                   behaviors:ThreeStateSortBehavior.IsEnabled="True"
+                                   behaviors:AutoScrollBehavior.IsEnabled="True">
             <ctrls:FilterableDataGrid.Columns>
                 <ctrls:FilterableTimeColumn Binding="{Binding Time}"
                                             SortMemberPath="Time"
