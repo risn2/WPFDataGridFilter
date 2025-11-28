@@ -9,8 +9,8 @@ namespace WPFDataGridFilter.ViewModels
     public class RelayCommand : ICommand
     {
         #region フィールド
-        private readonly Action<object?> _execute;
-        private readonly Func<object?, bool>? _canExecute;
+        private readonly Action<object?> execute;
+        private readonly Func<object?, bool>? canExecute;
         #endregion // フィールド
 
         #region コンストラクタ
@@ -21,8 +21,8 @@ namespace WPFDataGridFilter.ViewModels
         /// <param name="canExecute">実行可否デリゲート。null の場合は常に実行可。</param>
         public RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
         {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
+            this.execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            this.canExecute = canExecute;
         }
         #endregion コンストラクタ
 
@@ -30,12 +30,12 @@ namespace WPFDataGridFilter.ViewModels
         /// <summary>
         /// コマンドが現在実行可能かどうかを返します。
         /// </summary>
-        public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
+        public bool CanExecute(object? parameter) => canExecute?.Invoke(parameter) ?? true;
 
         /// <summary>
         /// コマンドの実行を行います。
         /// </summary>
-        public void Execute(object? parameter) => _execute(parameter);
+        public void Execute(object? parameter) => execute(parameter);
         #endregion メソッド
 
         #region イベント
